@@ -24,8 +24,8 @@ import java.util.List;
  * consulted by {@link Run#getEnvironment}, which is what Freestyle build steps and post-build
  * actions use. Declarative and scripted Pipeline resolve {@code env} differently, so these
  * variables are <em>not</em> reliably visible as {@code env.NEXUS_ARTIFACT_URL} inside a Pipeline.
- * In Pipeline read the URLs from the build's {@link NexusUploadBuildAction} instead, for example
- * through the REST API. The variables are still useful in a Pipeline that shells out through a Freestyle-style
+ * In Pipeline use the step's return value instead — that is the supported path and the reason it
+ * exists. The variables are still useful in a Pipeline that shells out through a Freestyle-style
  * build step, or for plugins that read the build environment.
  *
  * <p>Several uploads in one build accumulate: each new upload rewrites the action's list with the

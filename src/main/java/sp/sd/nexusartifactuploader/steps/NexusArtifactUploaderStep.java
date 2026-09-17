@@ -245,7 +245,21 @@ public final class NexusArtifactUploaderStep extends AbstractStepImpl {
         }
     }
 
-    public static final class Execution extends AbstractSynchronousNonBlockingStepExecution<Boolean> {
+    /**
+     * Returns the list of uploaded artifacts, one map per artifact, with the keys {@code url},
+     * {@code groupId}, {@code artifactId}, {@code version}, {@code classifier}, {@code type},
+     * {@code fileName}, {@code repository} and {@code verified}.
+     *
+     * <p>Plain strings in plain collections are used deliberately: they survive CPS serialization
+     * and are readable from a sandboxed script without any script-security whitelisting, which a
+     * custom result class would have required.
+     *
+     * <p>Compatibility with the previous {@code Boolean} return value: a successful upload yields a
+     * non-empty list and a failure still throws, so {@code if (nexusArtifactUploader(...))} keeps
+     * working through Groovy truthiness. Scripts that compare the result to {@code true} with
+     * {@code ==} must be updated.
+     */
+    public static final class Execution extends AbstractSynchronousNonBlockingStepExecution<List<Map<String, String>>> {
         private static final long serialVersionUID = 1L;
 
         @Inject
@@ -264,7 +278,7 @@ public final class NexusArtifactUploaderStep extends AbstractStepImpl {
         private transient Launcher launcher;
 
         @Override
-        protected Boolean run() throws Exception {
+        protected List<Map<String, String>> run() throws Exception {
             final Item project = build.getParent();
             final EnvVars envVars = build.getEnvironment(listener);
             final String username = step.getUsername(envVars, project);
@@ -323,7 +337,7 @@ public final class NexusArtifactUploaderStep extends AbstractStepImpl {
             }
 
             recordOnBuild(result);
-            return result.isSuccess();
+            return result.toList();
         }
 
         /**

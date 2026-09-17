@@ -59,8 +59,53 @@ Uploading snapshots is not supported by this plugin.
 
 ## Getting the URLs the artifacts are now available at
 
-Every upload records where each artifact ended up: in the build's environment, on the build page
-and through the REST API.
+Every upload records where each artifact ended up: in the step's return value, in the build's
+environment, on the build page and through the REST API.
+
+The Pipeline step returns a list with one entry per uploaded artifact:
+
+```groovy
+    def uploaded = nexusArtifactUploader(
+        nexusVersion: 'nexus3',
+        protocol: 'https',
+        nexusUrl: 'my.nexus.address',
+        groupId: 'com.example',
+        version: version,
+        repository: 'RepositoryName',
+        credentialsId: 'CredentialsId',
+        artifacts: [[artifactId: 'my-service', classifier: '', file: "my-service-${version}.jar", type: 'jar']]
+    )
+
+    echo uploaded[0].url
+    // https://my.nexus.address/repository/RepositoryName/com/example/my-service/1.0.0/my-service-1.0.0.jar
+
+    echo uploaded.collect { it.url }.join('\n')
+```
+
+Each entry is a plain `Map` of strings:
+
+| Key          | Meaning |
+|--------------|---------|
+| `url`        | where the artifact can be downloaded from |
+| `groupId`    | as configured |
+| `artifactId` | as configured |
+| `version`    | as configured |
+| `classifier` | as configured, empty string if none |
+| `type`       | as configured |
+| `fileName`   | the published file name, which for snapshots carries the server-assigned timestamp |
+| `repository` | the target repository |
+| `verified`   | `"true"` if the URL was observed during the transfer or confirmed by the search API, `"false"` if it was computed from the coordinates and not confirmed |
+
+Plain strings in plain collections are used on purpose: they survive CPS serialization and can be
+read from a sandboxed script without any script-security whitelisting.
+
+### Compatibility with the previous return value
+
+The step used to return a `Boolean`. A successful upload now returns a non-empty list and a failure
+still throws, so `if (nexusArtifactUploader(...)) { ... }` keeps working through Groovy truthiness.
+Scripts that compare the result with `==` — `if (nexusArtifactUploader(...) == true)` — must be
+updated.
+
 
 ### Environment variables
 
@@ -76,7 +121,7 @@ Every upload also contributes environment variables to the build:
 These are contributed through `EnvironmentContributingAction`, which is consulted by
 `Run#getEnvironment`. That makes them dependable in **Freestyle** build steps and post-build
 actions. Declarative and scripted Pipeline resolve `env` differently, so do **not** rely on
-`env.NEXUS_ARTIFACT_URL` inside a Pipeline — read the build's *Nexus artifacts* data there (see below).
+`env.NEXUS_ARTIFACT_URL` inside a Pipeline — use the step's return value there.
 
 ### On the build page
 
